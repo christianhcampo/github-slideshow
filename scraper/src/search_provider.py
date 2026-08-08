@@ -114,4 +114,3 @@ def get_search_provider(seed_results: Optional[List[SearchResult]] = None) -> Se
         "No hay proveedor de búsqueda configurado. Define APIFY_API_TOKEN y opcionalmente "
         "SEARCH_ACTOR_ID (ver .env.example), o provee seed_results para pruebas locales."
     )
-Fix Run object access
