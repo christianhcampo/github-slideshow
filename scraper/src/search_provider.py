@@ -59,7 +59,7 @@ class ApifySearchProvider(SearchProvider):
 
         logger.info("[SEARCH] Ejecutando actor SERP '%s' en Apify...", self.actor_id)
         run = client.actor(self.actor_id).call(run_input=run_input)
-        dataset_id = run["defaultDatasetId"]
+        dataset_id = run["defaultDatasetId"] if isinstance(run, dict) else run.default_dataset_id
 
         results: List[SearchResult] = []
         position = 0
@@ -114,3 +114,4 @@ def get_search_provider(seed_results: Optional[List[SearchResult]] = None) -> Se
         "No hay proveedor de búsqueda configurado. Define APIFY_API_TOKEN y opcionalmente "
         "SEARCH_ACTOR_ID (ver .env.example), o provee seed_results para pruebas locales."
     )
+Fix Run object access
