@@ -46,6 +46,7 @@ class ProfileRecord:
     google_position: Optional[int] = None
     search_title: Optional[str] = None
     search_description: Optional[str] = None
+    source_url: Optional[str] = None
 
     scraped_at: Optional[str] = None
 
