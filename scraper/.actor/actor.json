@@ -1,0 +1,10 @@
+{
+    "actorSpecification": 1,
+    "name": "directorio-servicios-scraper",
+    "title": "Directorio de Servicios Scraper",
+    "description": "Busca perfiles públicos de negocios/servicios por keyword + ubicación, extrae datos públicos del perfil y genera un ranking por score.",
+    "version": "1.0",
+    "buildTag": "latest",
+    "input": "./input_schema.json",
+    "dockerfile": "./Dockerfile"
+}
