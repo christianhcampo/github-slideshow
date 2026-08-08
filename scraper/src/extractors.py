@@ -359,8 +359,9 @@ def extract_contact(soup: BeautifulSoup) -> Dict[str, Any]:
 # Extracción completa de un perfil
 # --------------------------------------------------------------------------
 
-def extract_profile(html: str, url: str) -> Dict[str, Any]:
-    soup = BeautifulSoup(html or "", "html.parser")
+def extract_profile(html: str, url: str, soup: Optional[BeautifulSoup] = None) -> Dict[str, Any]:
+    if soup is None:
+        soup = BeautifulSoup(html or "", "html.parser")
     json_ld = parse_json_ld_blocks(soup)
 
     name = extract_name(soup, json_ld)
@@ -389,3 +390,64 @@ def domain_from_url(url: str) -> Optional[str]:
     if netloc.startswith("www."):
         netloc = netloc[4:]
     return netloc or None
+
+
+# --------------------------------------------------------------------------
+# Descubrimiento de perfiles internos (sitios directorio con múltiples perfiles)
+# --------------------------------------------------------------------------
+
+def discover_internal_profile_links(soup: BeautifulSoup, current_url: str, max_links: int = 10) -> List[str]:
+    """Encuentra enlaces internos que probablemente sean perfiles individuales
+    dentro de una página que actúa como directorio/listado.
+
+    Heurística: agrupa los enlaces internos por su "carpeta padre" (el path sin
+    el último segmento). Si dos o más enlaces comparten esa carpeta, es señal de
+    una estructura repetida típica de tarjetas/listados (ej. /perfil/juan,
+    /perfil/maria), por lo que se consideran candidatos a perfil.
+    """
+    from .utils import is_relevant_url  # import local para evitar ciclo de imports
+
+    current_domain = domain_from_url(current_url)
+    if not current_domain:
+        return []
+
+    candidates: List[str] = []
+    seen: set = set()
+    for a in soup.find_all("a", href=True):
+        href = a["href"].strip()
+        if not href or href.startswith("#"):
+            continue
+        absolute = urljoin(current_url, href)
+        if absolute == current_url:
+            continue
+        if domain_from_url(absolute) != current_domain:
+            continue
+        if not is_relevant_url(absolute):
+            continue
+        key = absolute.split("#")[0]
+        if key in seen:
+            continue
+        seen.add(key)
+        candidates.append(key)
+
+    groups: Dict[str, List[str]] = {}
+    for url in candidates:
+        parsed = urlparse(url)
+        segments = [s for s in parsed.path.split("/") if s]
+        # Requiere al menos 2 segmentos (ej. /perfil/juan) para agrupar: los
+        # enlaces de un solo segmento (/contacto, /nosotros) suelen ser
+        # navegación del sitio, no tarjetas de un listado.
+        if len(segments) < 2:
+            continue
+        parent = "/".join(segments[:-1])
+        groups.setdefault(parent, []).append(url)
+
+    profile_links: List[str] = []
+    for parent, urls_in_group in groups.items():
+        if len(urls_in_group) < 2:
+            continue
+        for url in urls_in_group:
+            if url not in profile_links:
+                profile_links.append(url)
+
+    return profile_links[:max_links]
