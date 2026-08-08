@@ -1,0 +1,53 @@
+{
+    "actorSpecification": 1,
+    "fields": {
+        "title": "Registro de perfil",
+        "type": "object",
+        "properties": {
+            "ranking": { "type": ["integer", "null"] },
+            "score": { "type": ["number", "null"] },
+            "data_quality_score": { "type": ["number", "null"] },
+            "status": { "type": "string", "enum": ["ok", "filtered", "blocked", "error"] },
+            "error_type": { "type": ["string", "null"] },
+            "name": { "type": ["string", "null"] },
+            "description": { "type": ["string", "null"] },
+            "location": { "type": ["string", "null"] },
+            "rating": { "type": ["number", "null"] },
+            "review_count": { "type": ["integer", "null"] },
+            "verified": { "type": "boolean" },
+            "main_image": { "type": ["string", "null"] },
+            "images": { "type": "array", "items": { "type": "string" } },
+            "public_phone": { "type": ["string", "null"] },
+            "public_whatsapp": { "type": ["string", "null"] },
+            "public_email": { "type": ["string", "null"] },
+            "public_social": { "type": ["array", "null"], "items": { "type": "string" } },
+            "profile_url": { "type": "string" },
+            "domain": { "type": ["string", "null"] },
+            "google_position": { "type": ["integer", "null"] },
+            "search_title": { "type": ["string", "null"] },
+            "search_description": { "type": ["string", "null"] },
+            "scraped_at": { "type": ["string", "null"] }
+        }
+    },
+    "views": {
+        "overview": {
+            "title": "Resumen",
+            "transformation": {
+                "fields": [
+                    "ranking",
+                    "score",
+                    "name",
+                    "rating",
+                    "review_count",
+                    "verified",
+                    "location",
+                    "profile_url",
+                    "status"
+                ]
+            },
+            "display": {
+                "component": "table"
+            }
+        }
+    }
+}
