@@ -26,6 +26,7 @@
             "google_position": { "type": ["integer", "null"] },
             "search_title": { "type": ["string", "null"] },
             "search_description": { "type": ["string", "null"] },
+            "source_url": { "type": ["string", "null"] },
             "scraped_at": { "type": ["string", "null"] }
         }
     },
