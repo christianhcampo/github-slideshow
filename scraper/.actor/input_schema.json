@@ -82,6 +82,14 @@
             "default": 2,
             "minimum": 0,
             "maximum": 5
+        },
+        "maxProfilesPerSite": {
+            "title": "Máximo de sub-perfiles por sitio",
+            "type": "integer",
+            "description": "Si una URL de resultado es un directorio con varios perfiles individuales adentro, cuántos de esos perfiles internos visitar como máximo (0 desactiva esta detección).",
+            "default": 10,
+            "minimum": 0,
+            "maximum": 50
         }
     },
     "required": ["keyword", "location"]
