@@ -50,6 +50,7 @@ DEFAULT_INPUT: Dict[str, Any] = {
     "concurrency": 5,
     "requestTimeoutSecs": 30,
     "maxRetries": 2,
+    "maxProfilesPerSite": 10,
 }
 
 
@@ -89,7 +90,7 @@ def _clean_text(value: Optional[str]) -> Optional[str]:
     return cleaned or None
 
 
-def _build_ok_record(raw: Dict[str, Any], search_result: Optional[SearchResult]) -> Dict[str, Any]:
+def _build_ok_record(raw: Dict[str, Any]) -> Dict[str, Any]:
     profile_url = normalize_url(raw.get("profile_url")) or raw["profile_url"]
     images = normalize_images(raw.get("images") or [], base_url=raw["profile_url"])
     main_image = normalize_url(raw.get("main_image"), base_url=raw["profile_url"]) if raw.get("main_image") else None
@@ -101,10 +102,7 @@ def _build_ok_record(raw: Dict[str, Any], search_result: Optional[SearchResult])
     rating = normalize_rating(raw.get("rating"))
     review_count = normalize_review_count(raw.get("review_count"))
     verified = bool(raw.get("verified"))
-
-    google_position = search_result.position if search_result else None
-    search_title = search_result.title if search_result else None
-    search_description = search_result.description if search_result else None
+    google_position = raw.get("google_position")
 
     record = {
         "profile_url": profile_url,
@@ -125,8 +123,9 @@ def _build_ok_record(raw: Dict[str, Any], search_result: Optional[SearchResult])
         "public_email": normalize_email(raw.get("public_email")),
         "public_social": normalize_social_links(raw.get("public_social")),
         "google_position": google_position,
-        "search_title": search_title,
-        "search_description": search_description,
+        "search_title": raw.get("search_title"),
+        "search_description": raw.get("search_description"),
+        "source_url": raw.get("source_url"),
         "scraped_at": raw.get("scraped_at"),
     }
 
@@ -135,7 +134,7 @@ def _build_ok_record(raw: Dict[str, Any], search_result: Optional[SearchResult])
     return record
 
 
-def _build_error_record(raw: Dict[str, Any], search_result: Optional[SearchResult]) -> Dict[str, Any]:
+def _build_error_record(raw: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "profile_url": raw.get("profile_url"),
         "domain": raw.get("domain"),
@@ -154,9 +153,10 @@ def _build_error_record(raw: Dict[str, Any], search_result: Optional[SearchResul
         "public_whatsapp": None,
         "public_email": None,
         "public_social": None,
-        "google_position": search_result.position if search_result else None,
-        "search_title": search_result.title if search_result else None,
-        "search_description": search_result.description if search_result else None,
+        "google_position": raw.get("google_position"),
+        "search_title": raw.get("search_title"),
+        "search_description": raw.get("search_description"),
+        "source_url": raw.get("source_url"),
         "scraped_at": raw.get("scraped_at"),
         "score": None,
         "data_quality_score": None,
@@ -208,30 +208,42 @@ async def run_pipeline(
     relevant_urls = filter_relevant_urls(all_urls)
     profile_urls = relevant_urls[:max_profiles]
 
+    seed_urls: List[Dict[str, Any]] = []
+    for url in profile_urls:
+        sr = url_to_search_result.get(normalize_url_for_dedup(url))
+        seed_urls.append(
+            {
+                "url": url,
+                "google_position": sr.position if sr else None,
+                "search_title": sr.title if sr else None,
+                "search_description": sr.description if sr else None,
+            }
+        )
+
     scraper = ProfileScraper(
         concurrency=int(merged.get("concurrency") or 5),
         request_timeout_secs=int(merged.get("requestTimeoutSecs") or 30),
         max_retries=int(merged.get("maxRetries") or 2),
         respect_robots=True,
+        max_profiles_per_site=int(merged.get("maxProfilesPerSite") or 0),
     )
-    raw_results = await scraper.scrape(profile_urls)
+    raw_results = await scraper.scrape(seed_urls)
 
     ranked_candidates: List[Dict[str, Any]] = []
     other_records: List[Dict[str, Any]] = []
     successful = 0
 
     for raw in raw_results:
-        search_result = url_to_search_result.get(normalize_url_for_dedup(raw["profile_url"]))
         if raw.get("status") == "ok":
             successful += 1
-            record = _build_ok_record(raw, search_result)
+            record = _build_ok_record(raw)
             if _passes_filters(record, min_rating, min_reviews, only_verified):
                 ranked_candidates.append(record)
             else:
                 record["status"] = "filtered"
                 other_records.append(record)
         else:
-            other_records.append(_build_error_record(raw, search_result))
+            other_records.append(_build_error_record(raw))
 
     ranked_candidates.sort(
         key=lambda r: (-(r["score"] or 0), -(r["rating"] or 0), -(r["review_count"] or 0))
